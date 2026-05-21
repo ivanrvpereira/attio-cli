@@ -23,6 +23,10 @@ export function register(program: Command): void {
           console.error(chalk.red('Record has no web_url.'));
           process.exit(1);
         }
+        if (!url.startsWith('https://app.attio.com/')) {
+          console.error(chalk.red(`Refusing to open untrusted URL: ${url}`));
+          process.exit(1);
+        }
       } else {
         // Open object listing page
         // First get workspace slug from /v2/self

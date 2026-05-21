@@ -47,4 +47,41 @@ export function register(program: Command): void {
 
       outputSingle(obj, { format, idField: 'api_slug' });
     });
+
+  objects
+    .command('views')
+    .description('List views for an object')
+    .argument('<object>', 'Object API slug or UUID (e.g. people, companies)')
+    .action(async function (this: Command, object: string) {
+      const opts = this.optsWithGlobals();
+      const client = new AttioClient(opts.apiKey, opts.debug);
+      const format: OutputFormat = detectFormat(opts);
+
+      const response = await client.get<{ data: any[] }>(`/objects/${encodeURIComponent(object)}/views`);
+      const views = response.data;
+
+      if (format === 'quiet') {
+        for (const v of views) {
+          console.log(v.id?.view_id ?? '');
+        }
+        return;
+      }
+
+      if (format === 'json') {
+        outputList(views, { format });
+        return;
+      }
+
+      const flat = views.map((v: any) => ({
+        id: v.id?.view_id || '',
+        title: v.title || '',
+        created_at: v.created_at || '',
+      }));
+
+      outputList(flat, {
+        format,
+        columns: ['id', 'title', 'created_at'],
+        idField: 'id',
+      });
+    });
 }

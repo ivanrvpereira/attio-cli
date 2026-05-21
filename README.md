@@ -64,8 +64,18 @@ attio config claude-md >> CLAUDE.md
 | **Objects** | |
 | `attio objects list` | List all objects in the workspace |
 | `attio objects get <slug>` | Get details for a specific object |
+| `attio objects views <object>` | List views for an object |
 | **Attributes** | |
-| `attio attributes list <object>` | List attributes for an object |
+| `attio attributes list --object <slug>\|--list <id>` | List attributes for an object or list |
+| `attio attributes get <attribute> --object <slug>\|--list <id>` | Get a single attribute |
+| `attio attributes create --object <slug>\|--list <id>` | Create an attribute |
+| `attio attributes update <attribute> --object <slug>\|--list <id>` | Update an attribute |
+| `attio attributes options list <attribute>` | List select options for an attribute |
+| `attio attributes options create <attribute>` | Create a select option |
+| `attio attributes options update <attribute> <option>` | Update a select option |
+| `attio attributes statuses list <attribute>` | List statuses for a status-type attribute |
+| `attio attributes statuses create <attribute>` | Create a status value |
+| `attio attributes statuses update <attribute> <status>` | Update a status value |
 | **Records** | |
 | `attio records list <object>` | List records for an object |
 | `attio records get <object> <id>` | Get a specific record |
@@ -120,6 +130,8 @@ attio config claude-md >> CLAUDE.md
 | **Lists** | |
 | `attio lists list` | List all lists |
 | `attio lists get <id>` | Get a specific list |
+| `attio lists create` | Create a new list |
+| `attio lists views <list>` | List views for a list |
 | **Entries** | |
 | `attio entries list <list>` | List entries in a list |
 | `attio entries get <list> <id>` | Get a specific entry |
@@ -148,9 +160,11 @@ attio config claude-md >> CLAUDE.md
 | **Meetings (Beta)** | |
 | `attio meetings list` | List meetings (beta endpoint) |
 | `attio meetings get <id>` | Get a meeting (beta endpoint) |
+| `attio meetings create` | Create a meeting (beta endpoint) |
 | **Recordings (Beta)** | |
 | `attio recordings list --meeting <id>` | List call recordings for a meeting |
 | `attio recordings get <id> --meeting <id>` | Get a call recording, optionally with transcript |
+| `attio recordings create <meeting-id>` | Attach a call recording to a meeting |
 | **Webhooks** | |
 | `attio webhooks events` | List supported webhook event types |
 | `attio webhooks list` | List webhooks |
@@ -158,6 +172,27 @@ attio config claude-md >> CLAUDE.md
 | `attio webhooks create` | Create a webhook |
 | `attio webhooks update <id>` | Update a webhook |
 | `attio webhooks delete <id>` | Delete a webhook |
+| **Files (Beta)** | |
+| `attio files list --object <slug> --record-id <uuid>` | List files and folders for a record |
+| `attio files get <id>` | Get a file or folder by ID |
+| `attio files create` | Create a folder or connected file/folder entry |
+| `attio files upload <path>` | Upload a file (multipart, max 50 MB) to native storage |
+| `attio files delete <id>` | Delete a file or folder |
+| `attio files download <id>` | Download a file (stream to stdout or `--output <path>`) |
+| **SCIM (v2)** | |
+| `attio scim schemas` | List SCIM schemas |
+| `attio scim users list` | List SCIM users |
+| `attio scim users get <id>` | Get a SCIM user |
+| `attio scim users create` | Create a SCIM user (`--data <json>\|@file`) |
+| `attio scim users update <id>` | PATCH a SCIM user |
+| `attio scim users replace <id>` | PUT (replace) a SCIM user |
+| `attio scim users delete <id>` | Delete a SCIM user |
+| `attio scim groups list` | List SCIM groups |
+| `attio scim groups get <id>` | Get a SCIM group |
+| `attio scim groups create` | Create a SCIM group (`--data <json>\|@file`) |
+| `attio scim groups update <id>` | PATCH a SCIM group |
+| `attio scim groups replace <id>` | PUT (replace) a SCIM group |
+| `attio scim groups delete <id>` | Delete a SCIM group |
 | **Members** | |
 | `attio members list` | List workspace members |
 | **Config** | |

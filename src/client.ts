@@ -96,15 +96,24 @@ export class AttioClient {
         return undefined as T;
       }
 
-      const json = await response.json();
+      const raw = await response.text();
+      let json: any = null;
+      if (raw) {
+        try {
+          json = JSON.parse(raw);
+        } catch {
+          json = null;
+        }
+      }
 
       if (this.debug && !response.ok) {
-        console.error(chalk.dim(`  error: ${JSON.stringify(json)}`));
+        console.error(chalk.dim(`  error: ${JSON.stringify(json ?? raw)}`));
       }
 
       if (!response.ok) {
         const errorType = json?.type ?? 'unknown_error';
-        let errorDetail = json?.message ?? json?.detail ?? response.statusText;
+        let errorDetail =
+          json?.message ?? json?.detail ?? (raw && !json ? raw : response.statusText);
         if (json?.validation_errors?.length) {
           const details = json.validation_errors.map((e: any) =>
             `${e.path?.join('.') || '?'}: ${e.message}`
@@ -112,6 +121,16 @@ export class AttioClient {
           errorDetail += ` [${details}]`;
         }
         throw new AttioApiError(response.status, errorType, errorDetail);
+      }
+
+      if (json === null) {
+        throw new AttioApiError(
+          response.status,
+          'unknown_error',
+          raw
+            ? `Expected JSON response body but got non-JSON (${raw.slice(0, 200)})`
+            : 'Expected JSON response body but got empty body',
+        );
       }
 
       return json as T;
