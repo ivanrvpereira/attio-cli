@@ -1,6 +1,14 @@
+import { readFileSync } from 'fs';
 import { Command } from 'commander';
 import { AttioClient } from '../client.js';
 import { detectFormat, outputList, outputSingle, type OutputFormat } from '../output.js';
+
+function parseJsonInput(raw: string): any {
+  if (raw.startsWith('@')) {
+    return JSON.parse(readFileSync(raw.slice(1), 'utf-8'));
+  }
+  return JSON.parse(raw);
+}
 
 function flattenRecording(recording: any): Record<string, string> {
   return {
@@ -132,6 +140,42 @@ export function register(program: Command): void {
         const transcript = await fetchTranscript(client, opts.meeting, id, opts);
         recording.transcript = transcript;
       }
+
+      if (format === 'json') {
+        outputSingle(recording, { format, idField: 'id' });
+        return;
+      }
+
+      outputSingle(flattenRecording(recording), { format, idField: 'id' });
+    });
+
+  cmd
+    .command('create <meeting-id>')
+    .description('Create a call recording for a meeting (Beta API)')
+    .option('--video-url <url>', 'Publicly accessible HTTPS URL to an .mp4 file (max 500MB)')
+    .option('--data <json>', 'Full request body as JSON or @file.json (overrides --video-url)')
+    .action(async (meetingId: string, _options: any, command: Command) => {
+      const opts = command.optsWithGlobals();
+      const client = new AttioClient(opts.apiKey, opts.debug);
+      const format: OutputFormat = detectFormat(opts);
+
+      let body: any;
+
+      if (opts.data) {
+        body = parseJsonInput(opts.data);
+      } else {
+        if (!opts.videoUrl) {
+          throw new Error('Provide --video-url <url> or --data <json> with the full request body.');
+        }
+        body = { data: { video_url: opts.videoUrl } };
+      }
+
+      const res = await client.post<{ data: any }>(
+        `/meetings/${encodeURIComponent(meetingId)}/call_recordings`,
+        body,
+      );
+
+      const recording = res.data;
 
       if (format === 'json') {
         outputSingle(recording, { format, idField: 'id' });

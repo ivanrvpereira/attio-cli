@@ -47,12 +47,17 @@ attio-cli/
     │   ├── records.ts      # attio records list|get|create|update|delete|search|upsert
     │   ├── people.ts       # attio people list|get|create|update|delete (shortcut)
     │   ├── companies.ts    # attio companies list|get|create|update|delete (shortcut)
-    │   ├── lists.ts        # attio lists list|get
+    │   ├── lists.ts        # attio lists list|get|create|views
     │   ├── entries.ts      # attio entries list|create|update|delete
     │   ├── tasks.ts        # attio tasks list|create|update|delete
     │   ├── notes.ts        # attio notes list|get|create
     │   ├── comments.ts     # attio comments list|create|delete
-    │   ├── attributes.ts   # attio attributes list
+    │   ├── attributes.ts   # attio attributes list|get|create|update + options/statuses subgroups
+    │   ├── meetings.ts     # attio meetings list|get|create
+    │   ├── recordings.ts   # attio recordings list|get|create
+    │   ├── webhooks.ts     # attio webhooks events|list|get|create|update|delete
+    │   ├── files.ts        # attio files list|get|create|upload|delete|download
+    │   ├── scim.ts         # attio scim schemas|users|groups
     │   ├── members.ts      # attio members list
     │   ├── config.ts       # attio config set|get|path
     │   ├── open.ts         # attio open <object> [record-id]
@@ -138,12 +143,44 @@ GET  /v2/self                               ← whoami
 ```bash
 attio objects list          → GET /v2/objects
 attio objects get <slug>    → GET /v2/objects/{slug}
+attio objects views <slug>  → GET /v2/objects/{slug}/views
 ```
 
 ### Attributes
+Attributes attach to either an object or a list. Every subcommand requires exactly
+one of `--object <slug>` or `--list <id>` to pick the target.
+
 ```bash
-attio attributes list <object>  → GET /v2/objects/{object}/attributes
+attio attributes list   --object <slug>|--list <id>
+  → GET /v2/{target}/{identifier}/attributes
+
+attio attributes get    <attribute> --object <slug>|--list <id>
+  → GET /v2/{target}/{identifier}/attributes/{attribute}
+
+attio attributes create --object <slug>|--list <id> --title ... --type ... [--api-slug ...] [--data <json>|@file]
+  → POST /v2/{target}/{identifier}/attributes
+
+attio attributes update <attribute> --object <slug>|--list <id> [--title ...] [--is-archived true|false] [--data <json>|@file]
+  → PATCH /v2/{target}/{identifier}/attributes/{attribute}
+
+attio attributes options list   <attribute> --object <slug>|--list <id>
+  → GET  /v2/{target}/{identifier}/attributes/{attribute}/options
+attio attributes options create <attribute> --object <slug>|--list <id> --title ...|--data <json>|@file
+  → POST /v2/{target}/{identifier}/attributes/{attribute}/options
+attio attributes options update <attribute> <option> --object <slug>|--list <id> [--title ...] [--is-archived true|false]
+  → PATCH /v2/{target}/{identifier}/attributes/{attribute}/options/{option}
+
+attio attributes statuses list   <attribute> --object <slug>|--list <id>
+  → GET  /v2/{target}/{identifier}/attributes/{attribute}/statuses
+attio attributes statuses create <attribute> --object <slug>|--list <id> --title ...|--data <json>|@file
+  → POST /v2/{target}/{identifier}/attributes/{attribute}/statuses
+attio attributes statuses update <attribute> <status> --object <slug>|--list <id> [--title ...] [--celebration-enabled true|false]
+  → PATCH /v2/{target}/{identifier}/attributes/{attribute}/statuses/{status}
 ```
+
+**Breaking change from v0.3**: the prior `attio attributes list <object>` positional
+form has been replaced by `attio attributes list --object <slug>` to make room for
+list-targeted attributes.
 
 ### Records (generic, works for any object)
 ```bash
@@ -186,9 +223,13 @@ These are purely convenience aliases. Implement them by calling the same records
 
 ### Lists
 ```bash
-attio lists list            → GET /v2/lists
-attio lists get <slug>      → GET /v2/lists/{slug}
+attio lists list                  → GET /v2/lists
+attio lists get <slug>            → GET /v2/lists/{slug}
+attio lists create --name ... --api-slug ... --parent-object ... [--workspace-access ...] [--data <json>|@file]
+  → POST /v2/lists
+attio lists views <slug>          → GET /v2/lists/{slug}/views
 ```
+(No DELETE: the API does not expose `DELETE /v2/lists/{slug}`.)
 
 ### Entries (records within lists)
 ```bash
@@ -252,6 +293,74 @@ attio comments create --object <obj> --record <id> --content "..."
 
 attio comments delete <comment-id> [--yes]
   → DELETE /v2/comments/{comment_id}
+```
+
+### Meetings (Beta)
+```bash
+attio meetings list                     → GET /v2/meetings
+attio meetings get <id>                 → GET /v2/meetings/{meeting_id}
+attio meetings create --title ... --description ... --start-at ... --end-at ... --participant email[:organizer:status] [--all-day] [--linked-object ... --linked-record-id ...] [--data <json>|@file]
+  → POST /v2/meetings
+```
+
+### Recordings (Beta)
+```bash
+attio recordings list --meeting <id>    → GET    /v2/meetings/{meeting_id}/call_recordings
+attio recordings get <id> --meeting <id> [--transcript]
+                                        → GET    /v2/meetings/{meeting_id}/call_recordings/{call_recording_id}[/transcript]
+attio recordings create <meeting-id> --video-url <https://...mp4>
+  → POST /v2/meetings/{meeting_id}/call_recordings
+attio recordings delete <id> --meeting <id> [--yes]
+  → DELETE /v2/meetings/{meeting_id}/call_recordings/{call_recording_id}
+```
+
+### Files (Beta)
+```bash
+attio files list --object <slug> --record-id <uuid> [--storage-provider ...] [--parent-folder-id ...] [--limit N] [--cursor ...]
+  → GET /v2/files
+attio files get <id>                    → GET /v2/files/{file_id}
+attio files create --object <slug> --record-id <uuid> --file-type folder|connected-file|connected-folder [--name ...] [--storage-provider ...] [--external-provider-file-id ...] [--microsoft-drive-id ...] [--parent-folder-id ...]
+  → POST /v2/files
+attio files upload <path> --object <slug> --record-id <uuid> [--parent-folder-id ...]
+  → POST /v2/files/upload   (multipart/form-data, max 50 MB)
+attio files delete <id> [--yes]         → DELETE /v2/files/{file_id}
+attio files download <id> [--output <path>]
+  → GET /v2/files/{file_id}/download    (302 redirect to signed URL; client follows and streams)
+```
+
+### SCIM (v2 provisioning)
+SCIM lives under a different base path (`/scim/v2/...`, not `/v2/...`) and uses
+`Content-Type: application/scim+json`. List endpoints return a SCIM envelope:
+`{ totalResults, startIndex, itemsPerPage, Resources: [...] }`.
+
+```bash
+attio scim schemas                                → GET    /scim/v2/Schemas
+
+attio scim users list [--filter ...] [--start-index N] [--count N]
+                                                  → GET    /scim/v2/Users
+attio scim users get <id>                         → GET    /scim/v2/Users/{user_id}
+attio scim users create  --data <json>|@file      → POST   /scim/v2/Users
+attio scim users update  <id> --data <json>|@file → PATCH  /scim/v2/Users/{user_id}
+attio scim users replace <id> --data <json>|@file → PUT    /scim/v2/Users/{user_id}
+attio scim users delete  <id> [--yes]             → DELETE /scim/v2/Users/{user_id}
+
+attio scim groups list [--filter ...] [--start-index N] [--count N]
+                                                  → GET    /scim/v2/Groups
+attio scim groups get <id>                        → GET    /scim/v2/Groups/{workspace_team_id}
+attio scim groups create  --data <json>|@file     → POST   /scim/v2/Groups
+attio scim groups update  <id> --data <json>|@file → PATCH  /scim/v2/Groups/{workspace_team_id}
+attio scim groups replace <id> --data <json>|@file → PUT   /scim/v2/Groups/{workspace_team_id}
+attio scim groups delete  <id> [--yes]            → DELETE /scim/v2/Groups/{workspace_team_id}
+```
+
+### Webhooks
+```bash
+attio webhooks events                  → (static — listed by the CLI itself)
+attio webhooks list                    → GET    /v2/webhooks
+attio webhooks get <id>                → GET    /v2/webhooks/{webhook_id}
+attio webhooks create --target-url ... --event ...     → POST   /v2/webhooks
+attio webhooks update <id> [...]       → PATCH  /v2/webhooks/{webhook_id}
+attio webhooks delete <id> [--yes]     → DELETE /v2/webhooks/{webhook_id}
 ```
 
 ### Workspace Members
