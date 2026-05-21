@@ -126,10 +126,10 @@ export function register(program: Command): void {
   cmd
     .command('create')
     .description('Create a meeting (Beta API)')
-    .requiredOption('--title <title>', 'Title of the meeting')
-    .requiredOption('--description <text>', 'Description of the meeting')
-    .requiredOption('--start-at <datetime>', 'Start datetime (ISO 8601, e.g. 2027-11-27T14:00:00Z)')
-    .requiredOption('--end-at <datetime>', 'End datetime (ISO 8601, e.g. 2027-11-27T15:00:00Z)')
+    .option('--title <title>', 'Title of the meeting (required unless --data)')
+    .option('--description <text>', 'Description of the meeting (required unless --data)')
+    .option('--start-at <datetime>', 'Start datetime, ISO 8601 (required unless --data, e.g. 2027-11-27T14:00:00Z)')
+    .option('--end-at <datetime>', 'End datetime, ISO 8601 (required unless --data, e.g. 2027-11-27T15:00:00Z)')
     .option('--start-timezone <tz>', 'IANA timezone for start (e.g. America/New_York)')
     .option('--end-timezone <tz>', 'IANA timezone for end (e.g. America/New_York)')
     .option('--all-day', 'Mark as an all-day meeting (start/end treated as dates, not datetimes)')
@@ -153,6 +153,17 @@ export function register(program: Command): void {
       if (opts.data) {
         body = parseJsonInput(opts.data);
       } else {
+        const missing: string[] = [];
+        if (!opts.title) missing.push('--title');
+        if (!opts.description) missing.push('--description');
+        if (!opts.startAt) missing.push('--start-at');
+        if (!opts.endAt) missing.push('--end-at');
+        if (missing.length > 0) {
+          throw new Error(
+            `Missing required option${missing.length > 1 ? 's' : ''}: ${missing.join(', ')} (or use --data).`,
+          );
+        }
+
         const isAllDay = !!opts.allDay;
 
         const start = isAllDay

@@ -14,6 +14,13 @@ function parseJsonInput(raw: string): any {
   return JSON.parse(raw);
 }
 
+function parseBoolFlag(value: string, flagName: string): boolean {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'true') return true;
+  if (normalized === 'false') return false;
+  throw new Error(`${flagName} must be "true" or "false" (got "${value}").`);
+}
+
 /**
  * Resolve the API path prefix from --object / --list flags.
  * Exactly one of the two must be set; throws if neither or both are provided.
@@ -232,9 +239,9 @@ export function register(program: Command): void {
       if (opts.title) data.title = opts.title;
       if (opts.apiSlug) data.api_slug = opts.apiSlug;
       if (opts.description !== undefined) data.description = opts.description;
-      if (opts.isRequired !== undefined) data.is_required = opts.isRequired === 'true';
-      if (opts.isUnique !== undefined) data.is_unique = opts.isUnique === 'true';
-      if (opts.isArchived !== undefined) data.is_archived = opts.isArchived === 'true';
+      if (opts.isRequired !== undefined) data.is_required = parseBoolFlag(opts.isRequired, '--is-required');
+      if (opts.isUnique !== undefined) data.is_unique = parseBoolFlag(opts.isUnique, '--is-unique');
+      if (opts.isArchived !== undefined) data.is_archived = parseBoolFlag(opts.isArchived, '--is-archived');
 
       if (Object.keys(data).length === 0) {
         throw new Error('Nothing to update. Provide at least one flag or --data.');
@@ -359,7 +366,7 @@ export function register(program: Command): void {
     } else {
       const data: Record<string, any> = {};
       if (opts.title) data.title = opts.title;
-      if (opts.isArchived !== undefined) data.is_archived = opts.isArchived === 'true';
+      if (opts.isArchived !== undefined) data.is_archived = parseBoolFlag(opts.isArchived, '--is-archived');
 
       if (Object.keys(data).length === 0) {
         throw new Error('Nothing to update. Provide at least one flag or --data.');
@@ -492,9 +499,9 @@ export function register(program: Command): void {
       const data: Record<string, any> = {};
       if (opts.title) data.title = opts.title;
       if (opts.celebrationEnabled !== undefined)
-        data.celebration_enabled = opts.celebrationEnabled === 'true';
+        data.celebration_enabled = parseBoolFlag(opts.celebrationEnabled, '--celebration-enabled');
       if (opts.targetTime !== undefined) data.target_time_in_status = opts.targetTime;
-      if (opts.isArchived !== undefined) data.is_archived = opts.isArchived === 'true';
+      if (opts.isArchived !== undefined) data.is_archived = parseBoolFlag(opts.isArchived, '--is-archived');
 
       if (Object.keys(data).length === 0) {
         throw new Error('Nothing to update. Provide at least one flag or --data.');

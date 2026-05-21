@@ -96,15 +96,24 @@ export class AttioClient {
         return undefined as T;
       }
 
-      const json = await response.json();
+      const raw = await response.text();
+      let json: any = null;
+      if (raw) {
+        try {
+          json = JSON.parse(raw);
+        } catch {
+          json = null;
+        }
+      }
 
       if (this.debug && !response.ok) {
-        console.error(chalk.dim(`  error: ${JSON.stringify(json)}`));
+        console.error(chalk.dim(`  error: ${JSON.stringify(json ?? raw)}`));
       }
 
       if (!response.ok) {
         const errorType = json?.type ?? 'unknown_error';
-        let errorDetail = json?.message ?? json?.detail ?? response.statusText;
+        let errorDetail =
+          json?.message ?? json?.detail ?? (raw && !json ? raw : response.statusText);
         if (json?.validation_errors?.length) {
           const details = json.validation_errors.map((e: any) =>
             `${e.path?.join('.') || '?'}: ${e.message}`

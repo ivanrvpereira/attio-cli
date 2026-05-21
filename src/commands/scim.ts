@@ -13,6 +13,39 @@ const MAX_RETRIES = 3;
 const INITIAL_BACKOFF_MS = 1000;
 const DEFAULT_TIMEOUT_MS = 30_000;
 
+const SENSITIVE_KEY_PATTERN = /password|secret|token|authorization|api[_-]?key/i;
+
+function redactForDebug(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(redactForDebug);
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[k] = SENSITIVE_KEY_PATTERN.test(k) ? '[REDACTED]' : redactForDebug(v);
+    }
+    return out;
+  }
+  return value;
+}
+
+async function safeReadJson(response: Response): Promise<{ json: any; raw: string }> {
+  const raw = await response.text();
+  if (!raw) return { json: null, raw };
+  try {
+    return { json: JSON.parse(raw), raw };
+  } catch {
+    return { json: null, raw };
+  }
+}
+
+function parsePositiveInt(value: string | undefined, flagName: string, fallback: number): number {
+  if (value === undefined) return fallback;
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < 1) {
+    throw new Error(`${flagName} must be a positive integer (got "${value}").`);
+  }
+  return n;
+}
+
 function getRetryDelayMs(response: Response, attempt: number): number {
   const retryAfter = response.headers.get('retry-after');
   if (retryAfter) {
@@ -41,7 +74,7 @@ async function scimRequest<T>(
   if (debug) {
     console.error(chalk.dim(`→ ${method} ${url}`));
     if (body !== undefined) {
-      console.error(chalk.dim(`  body: ${JSON.stringify(body)}`));
+      console.error(chalk.dim(`  body: ${JSON.stringify(redactForDebug(body))}`));
     }
   }
 
@@ -99,15 +132,16 @@ async function scimRequest<T>(
       return undefined as T;
     }
 
-    const json = await response.json();
+    const { json, raw } = await safeReadJson(response);
 
     if (debug && !response.ok) {
-      console.error(chalk.dim(`  error: ${JSON.stringify(json)}`));
+      console.error(chalk.dim(`  error: ${JSON.stringify(redactForDebug(json ?? raw))}`));
     }
 
     if (!response.ok) {
       const errorType = json?.type ?? 'unknown_error';
-      let errorDetail = json?.message ?? json?.detail ?? response.statusText;
+      let errorDetail =
+        json?.message ?? json?.detail ?? (raw && !json ? raw : response.statusText);
       if (json?.validation_errors?.length) {
         const details = json.validation_errors
           .map((e: any) => `${e.path?.join('.') || '?'}: ${e.message}`)
@@ -206,9 +240,11 @@ export function register(program: Command): void {
       const opts = command.optsWithGlobals();
       const format: OutputFormat = detectFormat(opts);
 
+      const startIndex = parsePositiveInt(opts.startIndex, '--start-index', 1);
+      const count = parsePositiveInt(opts.count, '--count', 100);
       const params = new URLSearchParams();
-      params.set('startIndex', String(Number(opts.startIndex) || 1));
-      params.set('count', String(Number(opts.count) || 100));
+      params.set('startIndex', String(startIndex));
+      params.set('count', String(count));
       if (opts.filter) {
         params.set('filter', opts.filter);
       }
@@ -385,9 +421,11 @@ export function register(program: Command): void {
       const opts = command.optsWithGlobals();
       const format: OutputFormat = detectFormat(opts);
 
+      const startIndex = parsePositiveInt(opts.startIndex, '--start-index', 1);
+      const count = parsePositiveInt(opts.count, '--count', 100);
       const params = new URLSearchParams();
-      params.set('startIndex', String(Number(opts.startIndex) || 1));
-      params.set('count', String(Number(opts.count) || 100));
+      params.set('startIndex', String(startIndex));
+      params.set('count', String(count));
       if (opts.filter) {
         params.set('filter', opts.filter);
       }
