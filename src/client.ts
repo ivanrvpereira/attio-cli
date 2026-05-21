@@ -123,6 +123,16 @@ export class AttioClient {
         throw new AttioApiError(response.status, errorType, errorDetail);
       }
 
+      if (json === null) {
+        throw new AttioApiError(
+          response.status,
+          'unknown_error',
+          raw
+            ? `Expected JSON response body but got non-JSON (${raw.slice(0, 200)})`
+            : 'Expected JSON response body but got empty body',
+        );
+      }
+
       return json as T;
     }
 
